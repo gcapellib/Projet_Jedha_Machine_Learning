@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CardioPredict — Diagnostic IA</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:    #2c3e6b;   /* fond principal PPTX */
+    --navy2:   #1e2d52;   /* fond plus sombre */
+    --navy3:   #162244;   /* fond très sombre */
+    --blue:    #4a7dc0;   /* accent bleu PPTX */
+    --blue2:   #7ec8c8;   /* turquoise PPTX */
+    --red:     #e24b4a;   /* rouge cardiaque PPTX */
+    --orange:  #f09f27;   /* orange PPTX */
+    --green:   #1d9e75;   /* vert PPTX */
+    --light:   #f4f8fb;   /* fond clair PPTX */
+    --text:    #d0dde8;   /* texte principal */
+    --muted:   #7a8fa8;   /* texte secondaire */
+    --border:  rgba(74,125,192,0.18);
+    --card:    rgba(30,45,82,0.8);
+  }
+
+  body {
+    background: var(--navy3);
+    color: var(--text);
+    font-family: 'Instrument Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grille de fond inspirée ECG */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(74,125,192,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,125,192,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* Glow en haut à gauche */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(74,125,192,0.12) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 52px 24px 80px; }
+
+  /* ── HEADER ─────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .logo-block {
+    flex-shrink: 0;
+    width: 60px; height: 60px;
+    background: linear-gradient(135deg, var(--blue), var(--blue2));
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 32px rgba(74,125,192,0.35);
+  }
+
+  .logo-block svg { width: 30px; height: 30px; }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    color: #fff;
+  }
+
+  header h1 span { color: var(--blue2); }
+
+  .header-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: rgba(74,125,192,0.08);
+  }
+
+  .badge.accent { border-color: rgba(126,200,200,0.3); color: var(--blue2); background: rgba(126,200,200,0.08); }
+
+  .jedha-tag {
+    position: absolute;
+    top: 0; right: 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+
+  /* ── SECTION LABEL ──────────────────────────── */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* ── FORMULAIRE ─────────────────────────────── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .field {
+    background: var(--card);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+
+  .field:focus-within {
+    border-color: rgba(74,125,192,0.5);
+    box-shadow: 0 0 0 3px rgba(74,125,192,0.08);
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.68rem;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: #fff;
+    appearance: none;
+  }
+
+  .field select option { background: var(--navy2); }
+  .field .unit { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── BOUTON ─────────────────────────────────── */
+  .btn-predict {
+    width: 100%;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--blue), #3a6daf);
+    border: none;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(74,125,192,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-predict::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn-predict:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(74,125,192,0.45); }
+  .btn-predict:hover::before { opacity: 1; }
+  .btn-predict:active { transform: scale(0.99); }
+
+  /* Spinner */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RÉSULTAT ───────────────────────────────── */
+  #result {
+    margin-top: 36px;
+    display: none;
+    animation: fadeUp 0.5s cubic-bezier(.23,1,.32,1);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card {
+    border-radius: 20px;
+    padding: 36px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+
+  .result-card.malade {
+    background: linear-gradient(135deg, rgba(44,20,20,0.95), rgba(62,25,25,0.9));
+    border-color: rgba(226,75,74,0.25);
+  }
+
+  .result-card.sain {
+    background: linear-gradient(135deg, rgba(15,40,35,0.95), rgba(20,55,45,0.9));
+    border-color: rgba(29,158,117,0.25);
+  }
+
+  /* Glow derrière la carte */
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0.08;
+  }
+
+  .result-card.malade::before { background: var(--red); }
+  .result-card.sain::before   { background: var(--green); }
+
+  .result-top {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .result-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem;
+    flex-shrink: 0;
+  }
+
+  .result-card.malade .result-icon { background: rgba(226,75,74,0.18); border: 1px solid rgba(226,75,74,0.25); }
+  .result-card.sain   .result-icon { background: rgba(29,158,117,0.18); border: 1px solid rgba(29,158,117,0.25); }
+
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .result-card.malade .result-title { color: #f07b7a; }
+  .result-card.sain   .result-title { color: #4fd4a0; }
+
+  .result-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  /* Barre de probabilité */
+  .proba-section { margin-bottom: 28px; }
+
+  .proba-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.75rem;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .proba-label .proba-num {
+    font-size: 1.4rem;
+    font-weight: 500;
+    font-family: 'Syne', sans-serif;
+    color: #fff;
+  }
+
+  .proba-track {
+    height: 8px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .proba-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1s cubic-bezier(.23,1,.32,1);
+  }
+
+  .malade .proba-fill { background: linear-gradient(90deg, #c0392b, var(--red), #f07b7a); }
+  .sain   .proba-fill { background: linear-gradient(90deg, #0e7a55, var(--green), #4fd4a0); }
+
+  /* Erreur API */
+  .api-error {
+    background: rgba(226,75,74,0.1);
+    border: 1px solid rgba(226,75,74,0.25);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: #f07b7a;
+    line-height: 1.6;
+    display: none;
+    margin-top: 16px;
+  }
+
+  /* ── DISCLAIMER ─────────────────────────────── */
+  .disclaimer {
+    margin-top: 48px;
+    padding: 18px 22px;
+    background: rgba(74,125,192,0.06);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.74rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    line-height: 1.7;
+  }
+
+  /* ── API URL CONFIG ──────────────────────────── */
+  .api-config {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .api-config label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .api-config input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--blue2);
+  }
+
+  .api-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+    box-shadow: 0 0 8px var(--green);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo-block">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Cardio<span>Predict</span></h1>
+      <div class="header-meta">
+        <span class="badge accent">Random Forest · 200 arbres</span>
+        <span class="badge">Accuracy 88%</span>
+        <span class="badge">Recall 90.2%</span>
+        <span class="badge">Seuil 0.4</span>
+        <span class="badge">918 patients UCI</span>
+      </div>
+    </div>
+    <div class="jedha-tag">Jedha Bootcamp · Flavien · Gabriel · Saïd · 2026</div>
+  </header>
+
+  <!-- Config URL API -->
+  <div class="api-config">
+    <div class="api-dot"></div>
+    <label>API</label>
+    <input type="text" id="api-url" value="https://projet-jedha-machine-learning.onrender.com">  </div>
+
+  <div class="section-label">Données cliniques du patient</div>
+
+  <div class="form-grid">
+    <div class="field">
+      <label>Âge</label>
+      <input type="number" id="Age" value="58" min="20" max="100">
+      <div class="unit">années</div>
+    </div>
+    <div class="field">
+      <label>Sexe</label>
+      <select id="Sex">
+        <option value="M">Homme</option>
+        <option value="F">Femme</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Type de douleur thoracique</label>
+      <select id="ChestPainType">
+        <option value="ASY">ASY — Asymptomatique</option>
+        <option value="NAP">NAP — Non-angineuse</option>
+        <option value="ATA">ATA — Atypique</option>
+        <option value="TA">TA — Typique</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Tension au repos (RestingBP)</label>
+      <input type="number" id="RestingBP" value="145" min="80" max="220">
+      <div class="unit">mmHg</div>
+    </div>
+    <div class="field">
+      <label>Cholestérol</label>
+      <input type="number" id="Cholesterol" value="280" min="100" max="650">
+      <div class="unit">mg/dL</div>
+    </div>
+    <div class="field">
+      <label>Glycémie à jeun &gt; 120</label>
+      <select id="FastingBS">
+        <option value="0">Non</option>
+        <option value="1" selected>Oui</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>ECG au repos</label>
+      <select id="RestingECG">
+        <option value="0">Normal (0)</option>
+        <option value="1" selected>Anomalie ST (1)</option>
+        <option value="2">HVG (2)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Fréquence cardiaque max (MaxHR)</label>
+      <input type="number" id="MaxHR" value="110" min="60" max="220">
+      <div class="unit">bpm</div>
+    </div>
+    <div class="field">
+      <label>Angine à l'effort</label>
+      <select id="ExerciseAngina">
+        <option value="N">Non</option>
+        <option value="Y" selected>Oui</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Oldpeak (dépression ST)</label>
+      <input type="number" id="Oldpeak" value="2.5" min="-3" max="7" step="0.1">
+      <div class="unit">mm</div>
+    </div>
+    <div class="field">
+      <label>Pente ST (ST_Slope)</label>
+      <select id="ST_Slope">
+        <option value="Up">Up — montante</option>
+        <option value="Flat" selected>Flat — plate</option>
+        <option value="Down">Down — descendante</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-predict" onclick="predict()" id="btn">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <span id="btn-text">Lancer le diagnostic</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <div class="api-error" id="api-error"></div>
+
+  <div id="result">
+    <div id="result-card" class="result-card">
+      <div class="result-top">
+        <div class="result-icon" id="result-icon"></div>
+        <div>
+          <div class="result-title" id="result-title"></div>
+          <div class="result-sub"   id="result-sub"></div>
+        </div>
+      </div>
+      <div class="proba-section">
+        <div class="proba-label">
+          <span>Probabilité de maladie cardiaque</span>
+          <span class="proba-num" id="proba-txt">—</span>
+        </div>
+        <div class="proba-track">
+          <div class="proba-fill" id="proba-fill" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="disclaimer">
+    ⚠ Outil pédagogique — Projet Jedha ML Essentials · Flavien · Gabriel · Saïd · Mars 2026<br>
+    Random Forest (200 arbres) · UCI Heart Failure dataset · Accuracy 88% · Recall 90.2% (seuil 0.4)<br>
+    Ce modèle ne remplace pas un diagnostic médical professionnel. Décision finale = médecin.
+  </div>
+
+</div>
+
+<script>
+// ── URL de l'API — modifiable dans l'interface ──────────────────────────────
+function getApiUrl() {
+  return document.getElementById('api-url').value.replace(/\/$/, '');
+}
+
+async function predict() {
+  // 1. Récupération des valeurs du formulaire
+  const payload = {
+    Age:            parseInt(document.getElementById('Age').value),
+    Sex:            document.getElementById('Sex').value,
+    ChestPainType:  document.getElementById('ChestPainType').value,
+    RestingBP:      parseFloat(document.getElementById('RestingBP').value),
+    Cholesterol:    parseFloat(document.getElementById('Cholesterol').value),
+    FastingBS:      parseInt(document.getElementById('FastingBS').value),
+    RestingECG:     parseInt(document.getElementById('RestingECG').value),
+    MaxHR:          parseFloat(document.getElementById('MaxHR').value),
+    ExerciseAngina: document.getElementById('ExerciseAngina').value,
+    Oldpeak:        parseFloat(document.getElementById('Oldpeak').value),
+    ST_Slope:       document.getElementById('ST_Slope').value
+  };
+
+  // 2. Affichage du spinner pendant l'appel API
+  const btn         = document.getElementById('btn');
+  const btnText     = document.getElementById('btn-text');
+  const spinner     = document.getElementById('spinner');
+  const errorDiv    = document.getElementById('api-error');
+  const resultDiv   = document.getElementById('result');
+
+  btnText.textContent = 'Analyse en cours...';
+  spinner.style.display = 'block';
+  btn.disabled = true;
+  errorDiv.style.display = 'none';
+  resultDiv.style.display = 'none';
+
+  try {
+    // 3. Appel réel à l'API FastAPI
+    // C'est ici que le vrai Random Forest tourne — pas une approximation JS
+    const response = await fetch(`${getApiUrl()}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`API erreur ${response.status} : ${err}`);
+    }
+
+    // 4. Traitement de la réponse JSON
+    const data = await response.json();
+    // data = { diagnostic, proba_malade, proba_sain, seuil_utilise }
+
+    afficherResultat(data, payload);
+
+  } catch (err) {
+    // Gestion d'erreur claire — souvent CORS ou API non démarrée
+    errorDiv.textContent = `⚠ Impossible de contacter l'API : ${err.message}\n\nVérifiez que uvicorn tourne sur ${getApiUrl()} et que le CORS est activé.`;
+    errorDiv.style.display = 'block';
+
+  } finally {
+    // 5. Remise en état du bouton dans tous les cas
+    btnText.textContent = 'Lancer le diagnostic';
+    spinner.style.display = 'none';
+    btn.disabled = false;
+  }
+}
+
+function afficherResultat(data, payload) {
+  const malade     = data.diagnostic === 'MALADE';
+  const pct        = data.proba_malade;
+
+  const card       = document.getElementById('result-card');
+  const icon       = document.getElementById('result-icon');
+  const title      = document.getElementById('result-title');
+  const sub        = document.getElementById('result-sub');
+  const probaFill  = document.getElementById('proba-fill');
+  const probaTxt   = document.getElementById('proba-txt');
+  const resultDiv  = document.getElementById('result');
+
+  // Thème de la carte selon le diagnostic
+  card.className    = 'result-card ' + (malade ? 'malade' : 'sain');
+  icon.textContent  = malade ? '⚠️' : '✅';
+
+  title.textContent = malade
+    ? 'Risque cardiaque détecté'
+    : 'Profil à faible risque';
+
+  sub.innerHTML = malade
+    ? `Probabilité estimée : <strong>${pct}%</strong> — seuil de décision : ${data.seuil_utilise}`
+    : `Probabilité estimée : <strong>${pct}%</strong> — en dessous du seuil de ${data.seuil_utilise}`;
+
+  // Animation de la barre de probabilité
+  probaTxt.textContent = pct + '%';
+  setTimeout(() => { probaFill.style.width = pct + '%'; }, 100);
+
+  // Affichage avec animation
+  resultDiv.style.display = 'block';
+  resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+</body>
+</html>
